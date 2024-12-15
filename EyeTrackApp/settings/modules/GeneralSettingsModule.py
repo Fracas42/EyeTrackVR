@@ -12,6 +12,7 @@ class GeneralSettingsValidationModel(BaseValidationModel):
     gui_right_eye_dominant: bool
     gui_left_eye_dominant: bool
     gui_eye_dominant_diff_thresh: float
+    gui_start_minimized: bool
 
 
 class GeneralSettingsModule(BaseSettingsModule):
@@ -26,6 +27,7 @@ class GeneralSettingsModule(BaseSettingsModule):
         self.gui_left_eye_dominant = f"-LEFTEYEDOMINANT{widget_id}-"
         self.gui_right_eye_dominant = f"-RIGHTEYEDOMINANT{widget_id}-"
         self.gui_update_check = f"-UPDATECHECK{widget_id}-"
+        self.gui_start_minimized = f"-STARTMINIMIZED{widget_id}-"
 
     # gui_right_eye_dominant: bool = False
     # gui_left_eye_dominant: bool = False
@@ -67,6 +69,15 @@ class GeneralSettingsModule(BaseSettingsModule):
                     key=self.gui_update_check,
                     background_color="#424042",
                     tooltip="Toggle update check on launch.",
+                ),
+            ],
+            [
+                sg.Checkbox(
+                    "Start Minimized",
+                    default=self.config.gui_start_minimized,
+                    key=self.gui_start_minimized,
+                    background_color="#424042",
+                    tooltip="Start the EyeTrackVR app minimized",
                 ),
             ],
             [

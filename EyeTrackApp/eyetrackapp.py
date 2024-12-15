@@ -334,6 +334,10 @@ def main():
         window = create_window(config, settings, eyes)
         
 
+        window.finalize()
+        if config.settings.gui_start_minimized:
+            window.minimize()
+
         while True:
             event, values = window.read(timeout=tint) # this higher timeout saves some cpu usage
 
