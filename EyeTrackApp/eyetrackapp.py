@@ -338,6 +338,10 @@ def main():
         # Allow openvr service to access the windows to dynamically update the settings (uncheck autostart box)
         openvr_service.window = window
 
+        window.finalize()
+        if config.settings.gui_start_minimized:
+            window.minimize()
+
         while True:
             event, values = window.read(timeout=tint) # this higher timeout saves some cpu usage
 

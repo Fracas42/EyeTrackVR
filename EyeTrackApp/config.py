@@ -215,6 +215,7 @@ class EyeTrackSettingsConfig(BaseModel):
     gui_use_module: bool = False
 
     gui_openvr_autostart: bool = False
+    gui_start_minimized: bool = False
 
 
 class EyeTrackConfig(BaseModel):
