@@ -359,6 +359,9 @@ class CameraWidget:
         if osc_message.data:
             self.ransac.ibo.clear_filter()
             self.ransac.calibration_frame_counter = self.config.calibration_samples
+            if self.settings.gui_LEAP or self.settings.gui_LEAP_lid:
+                self.ransac.calibration_frame_counter = max(self.ransac.calibration_frame_counter,
+                                                            self.settings.leap_calibration_samples)
             PlaySound("Audio/start.wav", SND_FILENAME | SND_ASYNC)
 
     def render(self, window, event, values):
@@ -455,6 +458,9 @@ class CameraWidget:
 
             if event == self.gui_restart_calibration:
                 self.ransac.calibration_frame_counter = self.settings.calibration_samples
+                if self.settings.gui_LEAP or self.settings.gui_LEAP_lid:
+                    self.ransac.calibration_frame_counter = max(self.ransac.calibration_frame_counter,
+                                                                self.settings.leap_calibration_samples)
                 self.ransac.ibo.clear_filter()
                 PlaySound(resource_path("Audio/start.wav"), SND_FILENAME | SND_ASYNC)
 

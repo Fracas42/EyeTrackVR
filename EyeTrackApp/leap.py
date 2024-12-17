@@ -81,6 +81,7 @@ class LEAP_C:
         self.ort_session1 = onnxruntime.InferenceSession(self.model_path, opts, providers=["CPUExecutionProvider"])
         self.eye_config: EyeTrackCameraConfig = eye_config
         self.config: EyeTrackConfig = config
+        self.recalibrate: bool = False
 
         for i in range(self.num_threads):
             thread = threading.Thread(
@@ -114,7 +115,7 @@ class LEAP_C:
             d2 = math.dist(pre_landmark[2], pre_landmark[4])
             d = (d1 + d2) / 2
 
-            if self.calib == 0:
+            if recalibrate:
                 self.openlist = []
                 self.eye_config.leap_calibrated = False
 
@@ -157,9 +158,9 @@ class External_Run_LEAP:
     def __init__(self, eye_config: EyeTrackCameraConfig, config: EyeTrackConfig):
         self.algo = LEAP_C(eye_config, config)
 
-    def run(self, current_image_gray, current_image_gray_clean, calib):
+    def run(self, current_image_gray, current_image_gray_clean, recalibrate: bool):
         self.algo.current_image_gray = current_image_gray
         self.algo.current_image_gray_clean = current_image_gray_clean
-        self.algo.calib = calib
+        self.algo.recalibrate = recalibrate
         img, x, y, per = self.algo.leap_run()
         return img, x, y, per
