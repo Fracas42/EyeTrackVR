@@ -8,7 +8,7 @@ from queue import Queue
 import threading
 from config import EyeTrackCameraConfig, EyeTrackConfig
 from one_euro_filter import OneEuroFilter
-import psutil
+from cv2.typing import MatLike
 from utils.misc_utils import resource_path
 from pathlib import Path
 
@@ -35,7 +35,7 @@ def run_model(input_queue, output_queue, session):
         output_queue.put((frame, pre_landmark))
 
 
-def run_onnx_model(queues, session, frame):
+def run_onnx_model(queues, frame):
     for queue in queues:
         if not queue.full():
             queue.put(frame)
@@ -92,75 +92,63 @@ class LEAP_C:
             self.threads.append(thread)
             thread.start()
 
-    def leap_run(self):
-        img = self.current_image_gray_clean.copy()
+    def run(self, current_image_gray: MatLike, current_image_gray_clean: MatLike, recalibrate: bool):
+        img = current_image_gray_clean.copy()
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         img_height, img_width = img.shape[:2]
 
         frame = cv2.resize(img, (112, 112))
-        imgvis = self.current_image_gray.copy()
-        run_onnx_model(self.queues, self.ort_session1, frame)
+        imgvis = current_image_gray.copy()
+        run_onnx_model(self.queues, frame)
 
-        if not self.output_queue.empty():
-            frame, pre_landmark = self.output_queue.get()
+        if self.output_queue.empty():
+            imgvis = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+            return imgvis, 0, 0, 0
 
-            for point in pre_landmark:
-                x, y = point
-                x = int(x * img_width)
-                y = int(y * img_height)
-                cv2.circle(imgvis, (x, y), 3, (255, 255, 0), -1)
-                cv2.circle(imgvis, (x, y), 1, (0, 0, 255), -1)
+        frame, pre_landmark = self.output_queue.get()
 
-            d1 = math.dist(pre_landmark[1], pre_landmark[3])
-            d2 = math.dist(pre_landmark[2], pre_landmark[4])
-            d = (d1 + d2) / 2
+        for point in pre_landmark:
+            x, y = point
+            x = int(x * img_width)
+            y = int(y * img_height)
+            cv2.circle(imgvis, (x, y), 3, (255, 255, 0), -1)
+            cv2.circle(imgvis, (x, y), 1, (0, 0, 255), -1)
 
-            if recalibrate:
-                self.openlist = []
-                self.eye_config.leap_calibrated = False
+        d1 = math.dist(pre_landmark[1], pre_landmark[3])
+        d2 = math.dist(pre_landmark[2], pre_landmark[4])
+        d = (d1 + d2) / 2
 
-            if not self.eye_config.leap_calibrated:
-                self.openlist.append(d)
-                self.eye_config.leap_calibration_percentile_90 = np.percentile(self.openlist, 90) if len(self.openlist) >= 10 else 0.8
-                self.eye_config.leap_calibration_percentile_2 = np.percentile(self.openlist, 2) - self.eye_config.leap_calibration_percentile_90
-                if len(self.openlist) >= self.config.settings.leap_calibration_samples:
-                    self.eye_config.leap_calibrated = True
-                    self.config.save()
-                    print(f"[INFO] {'Left' if self.eye_config is self.config.left_eye else 'Right'} eye calibrated")
+        if recalibrate:
+            self.openlist = []
+            self.eye_config.leap_calibrated = False
 
-            try:
-                if len(self.openlist) > 0:
-                    per = (d - self.eye_config.leap_calibration_percentile_90) / self.eye_config.leap_calibration_percentile_2
-                    per = 1 - per
-                    per = np.clip(per, 0.0, 1.0)
-                else:
-                    per = 0.8
-            except:
+        if not self.eye_config.leap_calibrated:
+            self.openlist.append(d)
+            self.eye_config.leap_calibration_percentile_90 = np.percentile(self.openlist, 90) if len(self.openlist) >= 10 else 0.8
+            self.eye_config.leap_calibration_percentile_2 = np.percentile(self.openlist, 2) - self.eye_config.leap_calibration_percentile_90
+            if len(self.openlist) >= self.config.settings.leap_calibration_samples:
+                self.eye_config.leap_calibrated = True
+                self.config.save()
+                print(f"[INFO] {'Left' if self.eye_config is self.config.left_eye else 'Right'} eye calibrated")
+
+        try:
+            if len(self.openlist) > 0:
+                per = (d - self.eye_config.leap_calibration_percentile_90) / self.eye_config.leap_calibration_percentile_2
+                per = 1 - per
+                per = np.clip(per, 0.0, 1.0)
+            else:
                 per = 0.8
+        except Exception:
+            per = 0.8
 
-            x = pre_landmark[6][0]
-            y = pre_landmark[6][1]
+        x = pre_landmark[6][0]
+        y = pre_landmark[6][1]
 
-            self.last_lid = per
-            calib_array = np.array([per, per]).reshape(1, 2)
-            per = self.one_euro_filter_float(calib_array)[0][0]
+        self.last_lid = per
+        calib_array = np.array([per, per]).reshape(1, 2)
+        per = self.one_euro_filter_float(calib_array)[0][0]
 
-            if per <= 0.25:
-                per = 0.0
+        if per <= 0.25:
+            per = 0.0
 
-            return imgvis, float(x), float(y), per
-
-        imgvis = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        return imgvis, 0, 0, 0
-
-
-class External_Run_LEAP:
-    def __init__(self, eye_config: EyeTrackCameraConfig, config: EyeTrackConfig):
-        self.algo = LEAP_C(eye_config, config)
-
-    def run(self, current_image_gray, current_image_gray_clean, recalibrate: bool):
-        self.algo.current_image_gray = current_image_gray
-        self.algo.current_image_gray_clean = current_image_gray_clean
-        self.algo.recalibrate = recalibrate
-        img, x, y, per = self.algo.leap_run()
-        return img, x, y, per
+        return imgvis, float(x), float(y), per
