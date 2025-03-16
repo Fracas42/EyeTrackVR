@@ -1,25 +1,26 @@
 """
-------------------------------------------------------------------------------------------------------                                                                                                    
-                                                                                                    
-                                               ,@@@@@@                                              
-                                            @@@@@@@@@@@            @@@                              
-                                          @@@@@@@@@@@@      @@@@@@@@@@@                             
-                                        @@@@@@@@@@@@@   @@@@@@@@@@@@@@                              
-                                      @@@@@@@/         ,@@@@@@@@@@@@@                               
-                                         /@@@@@@@@@@@@@@@  @@@@@@@@                                 
-                                    @@@@@@@@@@@@@@@@@@@@@@@@ @@@@@                                  
-                                @@@@@@@@                @@@@@                                       
-                              ,@@@                        @@@@&                                     
-                                             @@@@@@.       @@@@                                     
-                                   @@@     @@@@@@@@@/      @@@@@                                    
-                                   ,@@@.     @@@@@@((@     @@@@(                                    
-                                   //@@@        ,,  @@@@  @@@@@                                     
-                                   @@@(                @@@@@@@                                      
-                                   @@@  @          @@@@@@@@#                                        
-                                       @@@@@@@@@@@@@@@@@                                            
-                                      @@@@@@@@@@@@@(     
-                                      
-Algorithm App Implementations By: Prohurtz, qdot (GUI, Initial Implementations), PallasNeko (Optimizations), Summer (Algorithim Engineer)
+------------------------------------------------------------------------------------------------------
+
+                                               ,@@@@@@
+                                            @@@@@@@@@@@            @@@
+                                          @@@@@@@@@@@@      @@@@@@@@@@@
+                                        @@@@@@@@@@@@@   @@@@@@@@@@@@@@
+                                      @@@@@@@/         ,@@@@@@@@@@@@@
+                                         /@@@@@@@@@@@@@@@  @@@@@@@@
+                                    @@@@@@@@@@@@@@@@@@@@@@@@ @@@@@
+                                @@@@@@@@                @@@@@
+                              ,@@@                        @@@@&
+                                             @@@@@@.       @@@@
+                                   @@@     @@@@@@@@@/      @@@@@
+                                   ,@@@.     @@@@@@((@     @@@@(
+                                   //@@@        ,,  @@@@  @@@@@
+                                   @@@(                @@@@@@@
+                                   @@@  @          @@@@@@@@#
+                                       @@@@@@@@@@@@@@@@@
+                                      @@@@@@@@@@@@@(
+
+Algorithm App Implementations By: Prohurtz, qdot (GUI, Initial Implementations), PallasNeko (Optimizations),
+                                  Summer (Algorithim Engineer)
 
 Additional Contributors: [Assassin], Summer404NotFound, lorow, ZanzyTHEbar
 
@@ -29,55 +30,44 @@ LICENSE: Babble Software Distribution License 1.0
 """
 
 import sys
-import asyncio
 import os
-from config import EyeTrackCameraConfig
-from config import EyeTrackSettingsConfig
+import numpy as np
+import cv2
+import queue
 from pye3d.camera import CameraModel
 from pye3d.detector_3d import Detector3D, DetectorMode
-import queue
-from osc_calibrate_filter import *
+from threading import Event
+
+from one_euro_filter import OneEuroFilter
+from config import EyeTrackCameraConfig, EyeTrackConfig
+from config import EyeTrackSettingsConfig
+from osc_calibrate_filter import cal
 from daddy import External_Run_DADDY
 from leap import External_Run_LEAP
 from haar_surround_feature import External_Run_HSF
-from blob import *
-from ransac import *
-from blink import *
+from blob import BLOB
+from ransac import RANSAC3D
+from blink import BLINK
 from utils.img_utils import circle_crop
-from eye import EyeInfo, EyeInfoOrigin
-from intensity_based_openness import *
-from ellipse_based_pupil_dilation import *
-from AHSF import *
+from eye import EyeInfo, EyeInfoOrigin, EyeId
+from intensity_based_openness import IntensityBasedOpeness
+from ellipse_based_pupil_dilation import EllipseBasedPupilDilation
+from AHSF import AHSF
 from osc.OSCMessage import OSCMessageType, OSCMessage
 os.environ["OMP_NUM_THREADS"] = "1"
 sys.path.append(".")
-
-def run_once(f):
-    def wrapper(*args, **kwargs):
-        if not wrapper.has_run:
-            wrapper.has_run = True
-            return f(*args, **kwargs)
-
-    wrapper.has_run = False
-    return wrapper
-
-
-async def delayed_setting_change(setting, value):
-    await asyncio.sleep(5)
-    setting = value
-    PlaySound(resource_path("Audio/completed.wav"), SND_FILENAME | SND_ASYNC)
 
 
 class EyeProcessor:
     def __init__(
         self,
-        config: "EyeTrackCameraConfig",
-        settings: "EyeTrackSettingsConfig",
-        baseconfig: "EyetrackConfig",
-        cancellation_event: "threading.Event",
-        capture_event: "threading.Event",
-        capture_queue_incoming: "queue.Queue(maxsize=2)",
-        image_queue_outgoing: "queue.Queue(maxsize=2)",
+        config: EyeTrackCameraConfig,
+        settings: EyeTrackSettingsConfig,
+        baseconfig: EyeTrackConfig,
+        cancellation_event: Event,
+        capture_event: Event,
+        capture_queue_incoming: queue.Queue,
+        image_queue_outgoing: queue.Queue,
         eye_id,
         osc_queue: queue.Queue,
     ):
@@ -167,11 +157,10 @@ class EyeProcessor:
         self.angle = 621
         self.er_ahsf = None
 
-
         try:
             min_cutoff = float(self.settings.gui_min_cutoff)  # 0.0004
             beta = float(self.settings.gui_speed_coefficient)  # 0.9
-        except:
+        except Exception:
             print("\033[93m[WARN] OneEuroFilter values must be a legal number.\033[0m")
             min_cutoff = 0.0004
             beta = 0.9
@@ -196,9 +185,6 @@ class EyeProcessor:
 
         self.previous_image = self.current_image
         self.previous_rotation = self.config.rotation_angle
-
-    #       except:  # If this fails it likely means that the images are not the same size for some reason.
-    #    print("\033[91m[ERROR] Size of frames to display are of unequal sizes.\033[0m")
 
     def capture_crop_rotate_image(self):
         # Get our current frame
@@ -248,7 +234,8 @@ class EyeProcessor:
                 self.current_image = self.current_image_white
                 return True
 
-            # image does not fit in bounds, so warp, calculate average color of covered pixels, and apply that to the outside region.
+            # image does not fit in bounds,
+            # so warp, calculate average color of covered pixels, and apply that to the outside region.
 
             # warp image with alpha
             alpha = np.full(self.current_image.shape[:2], 255, dtype=np.uint8)
@@ -275,7 +262,7 @@ class EyeProcessor:
             )
 
             return True
-        except:
+        except Exception:
             pass
 
     def UPDATE(self):
@@ -297,10 +284,6 @@ class EyeProcessor:
             if self.eyeopen < float(self.settings.ibo_fully_close_eye_threshold):
                 self.eyeopen = 0.0
 
-            if self.bd_blink == True:
-                print("blinks")
-                pass
-
         if self.settings.gui_LEAP_lid and self.eyeopen != 0.0 and not self.settings.gui_LEAP:
             (
                 self.current_image_gray,
@@ -318,7 +301,6 @@ class EyeProcessor:
         blink_vec = min(abs(self.eyeopen - self.past_blink), 1)  # clamp to 1
 
         if blink_vec >= 0.18:
-            # self.out_x = sum(self.prev_x_list) / len(self.prev_x_list)
             self.out_y = sum(self.prev_y_list) / len(self.prev_y_list)
 
         if self.settings.gui_pupil_dilation:
@@ -382,7 +364,6 @@ class EyeProcessor:
 
     def DADDYM(self):
         # todo: We should have a proper variable for drawing.
-        # self.thresh = self.current_image_gray.copy()
         self.thresh = self.current_image_gray.copy()
         self.rawx, self.rawy, self.radius = self.er_daddy.run(self.current_image_gray)
         # Daddy also uses a one euro filter, so I'll have to use it twice, but I'm not going to think too much about it.
@@ -492,7 +473,6 @@ class EyeProcessor:
         else:
             pass
         self.hasrac_en = False
-        current_image_gray_copy = self.current_image_gray.copy()  # Duplicate before overwriting in RANSAC3D.
         (
             self.rawx,
             self.rawy,
@@ -526,7 +506,7 @@ class EyeProcessor:
             self.rawx,
             self.rawy,
             self.radius,
-        ) =  self.er_ahsf.External_Run_AHSF(self.current_image_gray)
+        ) = self.er_ahsf.External_Run_AHSF(self.current_image_gray)
         self.thresh = self.current_image_gray
         self.out_x, self.out_y, self.avg_velocity = cal.cal_osc(self, self.rawx, self.rawy, self.angle)
         self.current_algorithm = EyeInfoOrigin.HSF
@@ -551,64 +531,36 @@ class EyeProcessor:
 
     def ALGOSELECT(self):
         # send the tracking algos previous fail number, in algo if we pass set to 0, if fail, + 1
-        if self.failed == 0 and self.firstalgo != None:
-            self.firstalgo()
-        else:
-            self.failed = self.failed + 1
-        if self.failed == 1 and self.secondalgo != None:
-            self.secondalgo()
-        else:
-            self.failed = self.failed + 1
-        if self.failed == 2 and self.thirdalgo != None:
-            self.thirdalgo()
-        else:
-            self.failed = self.failed + 1
-        if self.failed == 3 and self.fourthalgo != None:
-            self.fourthalgo()
-        else:
-            self.failed = self.failed + 1
-        if self.failed == 4 and self.fithalgo != None:
-            self.fithalgo()
-        else:
-            self.failed = self.failed + 1
-        if self.failed == 5 and self.sixthalgo != None:
-            self.sixthalgo()
-        else:
-            self.failed = self.failed + 1
-        if self.failed == 6 and self.seventhalgo != None:
-            self.seventhalgo()
-        else:
-            self.failed = self.failed + 1
-        if self.failed == 7 and self.eigthalgo != None:
-            self.eigthalgo()
-        else:
-            self.failed = 0  # we have reached last possible algo and it is disabled, move to first algo
+        self.failed = 0
 
-    def run(self):
+        for algo in self.algos:
+            algo()
+            if self.failed == 0:
+                break
 
-        self.firstalgo = None
-        self.secondalgo = None
-        self.thirdalgo = None
-        self.fourthalgo = None
-        self.fithalgo = None
-        self.sixthalgo = None
-        self.seventhalgo = None
-        self.eigthalgo = None
-        algolist = [None, None, None, None, None, None, None, None, None]
+    def setup_algos(self):
+        self.algolist = []
 
         # clear HSF values when page is opened to correctly reflect setting changes
         self.er_hsf = None
 
-        # set algo priorities
-        if self.settings.gui_AHSFRAC:
-            if self.er_ahsf is None:
-                self.er_ahsf = AHSF(self.current_image_gray)
-            algolist[self.settings.gui_AHSFRACP] = self.AHSFRACM
+        algos_selection = [
+            (self.settings.gui_AHSFRAC, self.settings.gui_AHSFRACP, self.AHSFRACM),
+            (self.settings.gui_AHSF, self.settings.gui_AHSFP, self.AHSFM),
+            (self.settings.gui_HSF, self.settings.gui_HSFP, self.HSFM),
+            (self.settings.gui_HSRAC, self.settings.gui_HSRACP, self.HSRACM),
+            (self.settings.gui_DADDY, self.settings.gui_DADDYP, self.DADDYM),
+            (self.settings.gui_LEAP or self.settings.gui_LEAP_lid, self.settings.gui_LEAPP, self.LEAPM),
+            (self.settings.gui_RANSAC3D, self.settings.gui_RANSAC3DP, self.RANSAC3DM),
+            (self.settings.gui_BLOB, self.settings.gui_BLOBP, self.BLOBM)
+        ]
 
-        if self.settings.gui_AHSF:
-            if self.er_ahsf is None:
-                self.er_ahsf = AHSF(self.current_image_gray)
-            algolist[self.settings.gui_AHSFP] = self.AHSFM
+        # algo initialisation
+        if self.settings.gui_AHSFRAC and self.er_ahsf is None:
+            self.er_ahsf = AHSF(self.current_image_gray)
+
+        if self.settings.gui_AHSF and self.er_ahsf is None:
+            self.er_ahsf = AHSF(self.current_image_gray)
 
         if self.settings.gui_HSF:
             if self.er_hsf is None:
@@ -626,12 +578,8 @@ class EyeProcessor:
                     )
                 else:
                     pass
-
-            algolist[self.settings.gui_HSFP] = self.HSFM
-
         else:
-            if self.er_hsf is not None:
-                self.er_hsf = None
+            self.er_hsf = None
 
         if self.settings.gui_HSRAC:
             if self.er_hsf is None:
@@ -649,45 +597,34 @@ class EyeProcessor:
                     )
                 else:
                     pass
-
-            algolist[self.settings.gui_HSRACP] = self.HSRACM
-        else:
-            if not self.settings.gui_HSF and self.er_hsf is not None:
-                self.er_hsf = None
+        elif not self.settings.gui_HSF and self.er_hsf is not None:
+            self.er_hsf = None
 
         if self.settings.gui_DADDY:
             if self.er_daddy is None:
                 self.er_daddy = External_Run_DADDY()
-            algolist[self.settings.gui_DADDYP] = self.DADDYM
-        else:
-            if self.er_daddy is not None:
-                self.er_daddy = None
+        elif self.er_daddy is not None:
+            self.er_daddy = None
 
         if self.settings.gui_LEAP or self.settings.gui_LEAP_lid:
             if self.er_leap is None:
                 self.er_leap = External_Run_LEAP(self.config, self.baseconfig)
-            algolist[self.settings.gui_LEAP] = self.LEAPM
         else:
             if self.er_leap is not None:
                 self.er_leap = None
 
-        if self.settings.gui_RANSAC3D:
-            algolist[self.settings.gui_RANSAC3DP] = self.RANSAC3DM
+        algosp = [None] * (len(algos_selection) + 1)
+        for i in range(0, len(algos_selection)):
+            if algos_selection[i][0]:
+                algosp[algos_selection[i][1]] = algos_selection[i][2]
 
-        if self.settings.gui_BLOB:
-            algolist[self.settings.gui_BLOBP] = self.BLOBM
+        self.algos = []
+        for algo in algosp:
+            if algo is not None:
+                self.algos.append(algo)
 
-        (
-            _,
-            self.firstalgo,
-            self.secondalgo,
-            self.thirdalgo,
-            self.fourthalgo,
-            self.fithalgo,
-            self.sixthalgo,
-            self.seventhalgo,
-            self.eigthalgo,
-        ) = algolist
+    def run(self):
+        self.setup_algos()
 
         while True:
 
@@ -728,7 +665,6 @@ class EyeProcessor:
                     self.current_fps,
                 ) = self.capture_queue_incoming.get(block=True, timeout=0.1)
             except queue.Empty:
-                # print("No image available")
                 continue
 
             if not self.capture_crop_rotate_image():
