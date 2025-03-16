@@ -29,6 +29,8 @@ import PySimpleGUI as sg
 import queue
 import requests
 import threading
+import uuid
+
 from camera_widget import CameraWidget
 from config import EyeTrackConfig
 from eye import EyeId
@@ -38,9 +40,6 @@ from settings.algo_settings_widget import AlgoSettingsWidget
 from osc.osc import OSCManager
 from osc.OSCMessage import OSCMessage
 from utils.misc_utils import is_nt, resource_path
-import cv2
-import numpy as np
-import uuid
 
 winmm = None
 
@@ -58,8 +57,6 @@ os.system("color")  # init ANSI color
 # https://github.com/opencv/opencv/issues/17687
 os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 WINDOW_NAME = "EyeTrackApp"
-
-
 
 page_url = "https://github.com/RedHawk989/EyeTrackVR/releases/latest"
 appversion = "EyeTrackApp 0.2.0 BETA 14"
@@ -84,8 +81,10 @@ class KeyManager:
         self.VRCFT_MODULE_SETTINGS_RADIO_NAME = f"-VRCFTSETTINGSRADIO{unique_id}-"
         self.GUIOFF_RADIO_NAME = f"-GUIOFF{unique_id}-"
 
+
 # Create an instance of the KeyManager
 key_manager = KeyManager()
+
 
 def create_window(config, settings, eyes):
 
@@ -190,7 +189,6 @@ def create_window(config, settings, eyes):
         [sg.Text("- - -  Interface Paused  - - -", key="-WINFOCUS-", background_color="#292929", text_color="#F0F0F0", justification="center", expand_x=True, visible=False)],
     ]
 
-
     if config.eye_display_id in [EyeId.LEFT, EyeId.BOTH]:
         eyes[1].start()
     if config.eye_display_id in [EyeId.RIGHT, EyeId.BOTH]:
@@ -210,15 +208,16 @@ def create_window(config, settings, eyes):
         icon=resource_path("Images/logo.ico"),
         background_color="#292929")
 
+
 def timerResolution(toggle):
-    if winmm != None:
+    if winmm is not None:
         if toggle:
             rc = c_int(winmm.timeBeginPeriod(1))
             if rc.value != 0:
-                # TIMEERR_NOCANDO = 97
                 print(f"\033[93m[WARN] Failed to set timer resolution: {rc.value}\033[0m")
         else:
             winmm.timeEndPeriod(1)
+
 
 def main():
     # Get Configuration
@@ -242,8 +241,6 @@ def main():
                 )
                 try:
                     if is_nt:
-                        cwd = os.getcwd()
-                        # icon = cwd + "\Images\logo.ico"
                         icon = resource_path("Images/logo.ico")
                         toast = Notification(
                             app_id="EyeTrackApp",
@@ -256,9 +253,9 @@ def main():
                             launch="https://github.com/RedHawk989/EyeTrackVR/releases/latest",
                         )
                         toast.show()
-                except Exception as e:
+                except Exception:
                     print("[INFO] Toast notifications not supported")
-    except:
+    except Exception:
         print("\033[91m[INFO] Could not check for updates. Please try again later.\033[0m")
 
     timerResolution(True)
@@ -329,10 +326,8 @@ def main():
 
             windowg.close()
 
-
         # First off, check for any events from the GUI
         window = create_window(config, settings, eyes)
-        
 
         while True:
             event, values = window.read(timeout=tint) # this higher timeout saves some cpu usage
@@ -472,8 +467,6 @@ def main():
 
             if event == key_manager.GUIOFF_RADIO_NAME:
                 config.settings.gui_disable_gui = True
-                #  eyes[0].stop()
-                # eyes[1].stop()
                 settings[0].stop()
                 settings[1].stop()
                 settings[2].stop()
@@ -482,10 +475,10 @@ def main():
                 window[key_manager.SETTINGS_NAME].update(visible=False)
                 window[key_manager.VRCFT_MODULE_SETTINGS_NAME].update(visible=False)
                 window[key_manager.ALGO_SETTINGS_NAME].update(visible=False)
-                #config.eye_display_id = EyeId.GUIOFF
                 config.save()
                 window.close()
                 break
+
 
 if __name__ == "__main__":
     main()

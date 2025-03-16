@@ -69,6 +69,7 @@ class FastMedian:
             self.__median = lst_median(all, ordered=False)
         return self.__median
 
+
 def resource_path(relative_path: Union[str, Path]) -> str:
     """
     Get absolute path to resource, works for dev and for PyInstaller

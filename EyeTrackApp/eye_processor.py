@@ -47,7 +47,6 @@ from leap import External_Run_LEAP
 from haar_surround_feature import External_Run_HSF
 from blob import BLOB
 from ransac import RANSAC3D
-from blink import BLINK
 from utils.img_utils import circle_crop
 from eye import EyeInfo, EyeInfoOrigin, EyeId
 from intensity_based_openness import IntensityBasedOpeness
@@ -168,8 +167,6 @@ class EyeProcessor:
         self.one_euro_filter = OneEuroFilter(noisy_point, min_cutoff=min_cutoff, beta=beta)
 
     def output_images_and_update(self, threshold_image, output_information: EyeInfo):
-        #  try:  # I do not like this try.
-
         self.current_image_gray = cv2.resize(self.current_image_gray, (150, 150), interpolation=cv2.INTER_AREA)
         threshold_image = cv2.resize(threshold_image, (150, 150), interpolation=cv2.INTER_AREA)
         image_stack = np.concatenate(
@@ -266,10 +263,6 @@ class EyeProcessor:
             pass
 
     def UPDATE(self):
-
-        if self.settings.gui_BLINK:
-            self.eyeopen = BLINK(self)
-
         if (
             self.settings.gui_IBO and self.eyeopen != 0.0
         ):  # TODO make ransac blink it's pwn self var to rid of this non-sense
@@ -348,9 +341,6 @@ class EyeProcessor:
         )
         self.osc_queue.put(osc_message)
         self.eyeopen = 0.8  # TODO: remove this by fixing checks if is 0.0
-
-    def BLINKM(self):
-        self.eyeopen = BLINK(self)
 
     def LEAPM(self):
         self.thresh = self.current_image_gray.copy()

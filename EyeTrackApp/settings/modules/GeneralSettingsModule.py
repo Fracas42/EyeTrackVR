@@ -1,4 +1,3 @@
-from config import EyeTrackSettingsConfig
 from settings.modules.BaseModule import BaseSettingsModule, BaseValidationModel
 import PySimpleGUI as sg
 
@@ -26,11 +25,6 @@ class GeneralSettingsModule(BaseSettingsModule):
         self.gui_left_eye_dominant = f"-LEFTEYEDOMINANT{widget_id}-"
         self.gui_right_eye_dominant = f"-RIGHTEYEDOMINANT{widget_id}-"
         self.gui_update_check = f"-UPDATECHECK{widget_id}-"
-
-    # gui_right_eye_dominant: bool = False
-    # gui_left_eye_dominant: bool = False
-    # gui_outer_side_falloff: bool = True
-    # gui_eye_dominant_diff_thresh: float = 0.3
 
     def get_layout(self):
         return [

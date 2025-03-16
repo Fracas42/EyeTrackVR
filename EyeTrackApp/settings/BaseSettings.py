@@ -7,6 +7,7 @@ from threading import Event
 from eye import EyeId
 from config import EyeTrackConfig, EyeTrackSettingsConfig
 
+
 class BaseSettingsWidget:
     def __init__(self, widget_id: EyeId, main_config: EyeTrackConfig, settings_modules: Iterable):
         self.widget_id = widget_id

@@ -10,7 +10,6 @@ from settings.modules.CommonFieldValidators import check_is_float_convertible
 class BlinkAlgoSettingsValidationModel(BaseValidationModel):
     gui_IBO: bool
     gui_RANSACBLINK: bool
-    gui_BLINK: bool
     gui_LEAP_lid: bool
     ibo_filter_samples: int
     calibration_samples: int
@@ -27,7 +26,6 @@ class BlinkAlgoSettingsModule(BaseSettingsModule):
 
         self.gui_IBO = f"-IBO{widget_id}-"
         self.gui_RANSACBLINK = f"-RANSACBLINK{widget_id}-"
-        self.gui_BLINK = f"-BLINK{widget_id}-"
         self.gui_LEAP_lid = f"-LEAPLID{widget_id}-"
         self.ibo_filter_samples = f"-IBOFILTERSAMPLE{widget_id}-"
         self.calibration_samples = f"-CALIBRATIONSAMPLES{widget_id}-"
@@ -50,12 +48,6 @@ class BlinkAlgoSettingsModule(BaseSettingsModule):
                     "RANSAC Quick Blink Algo",
                     default=self.config.gui_RANSACBLINK,
                     key=self.gui_RANSACBLINK,
-                    background_color="#424042",
-                ),
-                sg.Checkbox(
-                    "Binary Blink Algo",
-                    default=self.config.gui_BLINK,
-                    key=self.gui_BLINK,
                     background_color="#424042",
                 ),
                 sg.Checkbox(

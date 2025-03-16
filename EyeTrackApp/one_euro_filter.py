@@ -52,5 +52,5 @@ class OneEuroFilter:
                 self.t_prev = t
 
                 return x_hat
-        except:
+        except Exception:
             print("\033[91m[ERROR] One Euro Filter Error. Is your system clock running properly?\033[0m")

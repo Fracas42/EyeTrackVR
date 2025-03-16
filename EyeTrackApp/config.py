@@ -131,7 +131,6 @@ class EyeTrackSettingsConfig(BaseModel):
     gui_RANSAC3D: bool = False
     gui_HSF: bool = False
     gui_BLOB: bool = False
-    gui_BLINK: bool = False
     gui_HSRAC: bool = False
     gui_AHSFRAC: bool = True
     gui_AHSF: bool = False

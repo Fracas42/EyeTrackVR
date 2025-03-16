@@ -1,24 +1,24 @@
 """
-------------------------------------------------------------------------------------------------------                                                                                                    
-                                                                                                    
-                                               ,@@@@@@                                              
-                                            @@@@@@@@@@@            @@@                              
-                                          @@@@@@@@@@@@      @@@@@@@@@@@                             
-                                        @@@@@@@@@@@@@   @@@@@@@@@@@@@@                              
-                                      @@@@@@@/         ,@@@@@@@@@@@@@                               
-                                         /@@@@@@@@@@@@@@@  @@@@@@@@                                 
-                                    @@@@@@@@@@@@@@@@@@@@@@@@ @@@@@                                  
-                                @@@@@@@@                @@@@@                                       
-                              ,@@@                        @@@@&                                     
-                                             @@@@@@.       @@@@                                     
-                                   @@@     @@@@@@@@@/      @@@@@                                    
-                                   ,@@@.     @@@@@@((@     @@@@(                                    
-                                   //@@@        ,,  @@@@  @@@@@                                     
-                                   @@@(                @@@@@@@                                      
-                                   @@@  @          @@@@@@@@#                                        
-                                       @@@@@@@@@@@@@@@@@                                            
-                                      @@@@@@@@@@@@@(     
-                                      
+------------------------------------------------------------------------------------------------------
+
+                                               ,@@@@@@
+                                            @@@@@@@@@@@            @@@
+                                          @@@@@@@@@@@@      @@@@@@@@@@@
+                                        @@@@@@@@@@@@@   @@@@@@@@@@@@@@
+                                      @@@@@@@/         ,@@@@@@@@@@@@@
+                                         /@@@@@@@@@@@@@@@  @@@@@@@@
+                                    @@@@@@@@@@@@@@@@@@@@@@@@ @@@@@
+                                @@@@@@@@                @@@@@
+                              ,@@@                        @@@@&
+                                             @@@@@@.       @@@@
+                                   @@@     @@@@@@@@@/      @@@@@
+                                   ,@@@.     @@@@@@((@     @@@@(
+                                   //@@@        ,,  @@@@  @@@@@
+                                   @@@(                @@@@@@@
+                                   @@@  @          @@@@@@@@#
+                                       @@@@@@@@@@@@@@@@@
+                                      @@@@@@@@@@@@@(
+
 Intensity Based Openess By: Prohurtz, PallasNeko (Optimization)
 Algorithm App Implementations By: Prohurtz
 
@@ -30,10 +30,11 @@ import numpy as np
 import time
 import os
 import cv2
-from eye import EyeId
-from one_euro_filter import OneEuroFilter
 import psutil
 import sys
+
+from eye import EyeId
+from one_euro_filter import OneEuroFilter
 
 process = psutil.Process(os.getpid())  # set process priority to low
 try:  # medium chance this does absolutely nothing but eh
@@ -127,12 +128,9 @@ class IntensityBasedOpeness:
             self.imgfile = "IBO_RIGHT.png"
         else:
             pass
-        # self.imgfile = "IBO_LEFT.png" if eyeside is EyeLR.LEFT else "IBO_RIGHT.png"
-        # self.data[0, -1] = maxval, [1, -1] = rotation, [2, -1] = x, [3, -1] = y
         self.data = None
         self.lct = None
         self.maxval = 0
-        # self.img_roi = self.now_roi == {"rotation": 0, "x": 0, "y": 0}
         self.img_roi = np.zeros(3, dtype=np.int32)
         self.now_roi = np.zeros(3, dtype=np.int32)
         self.prev_val = 0.5
@@ -147,21 +145,12 @@ class IntensityBasedOpeness:
         self.eye_id = eye_id
         self.maxinten = 0
         self.tri_filter = []
-        #  try:
-        #      min_cutoff = float(self.settings.gui_min_cutoff)  # 0.0004
-        #     beta = float(self.settings.gui_speed_coefficient)  # 0.9
-        # except:
-        print("\033[93m[WARN] OneEuroFilter values must be a legal number.\033[0m")
-        min_cutoff = 0.0004
-        beta = 0.9
-        noisy_point = np.array([1, 1])
-        self.one_euro_filter = OneEuroFilter(noisy_point, min_cutoff=min_cutoff, beta=beta)
+        self.one_euro_filter = OneEuroFilter(np.array([1, 1]), min_cutoff=0.0004, beta=0.9)
 
     def check(self, frameshape):
         # 0 in data is used as the initial value.
         # When assigning a value, +1 is added to the value to be assigned.
         self.load(frameshape)
-        # self.maxval = self.data[0, -1]
         if self.lct is None:
             self.lct = time.time()
 
@@ -186,7 +175,7 @@ class IntensityBasedOpeness:
                             req_newdata = True
                         else:
                             self.maxval = self.data[0, -1]
-                except:
+                except Exception:
                     print("[ERROR] File read error: {}".format(self.imgfile))
                     req_newdata = True
             else:
@@ -202,14 +191,11 @@ class IntensityBasedOpeness:
             self.data = newdata(frameshape)
             self.maxval = 0
             self.img_roi = self.now_roi.copy()
-        # data2csv(self.data, "a.csv")
-        # csv2data(frameshape,"a.csv")
 
     def save(self):
         self.data[0, -1] = self.maxval
         self.data[1:4, -1] = self.now_roi
         cv2.imwrite(self.imgfile, u32_1ch_to_u16_3ch(self.data))
-        # print("SAVED: {}".format(self.imgfile))
 
     def change_roi(self, roiinfo: dict):
         self.now_roi[:] = [v for v in roiinfo.values()]
@@ -222,23 +208,12 @@ class IntensityBasedOpeness:
             os.remove(self.imgfile)
 
     def intense(self, x, y, frame, filterSamples, outputSamples):
-        # x,y = 0~(frame.shape[1 or 0]-1), frame = 1-channel frame cropped by ROI
         self.check(frame.shape)
         int_x, int_y = int(x), int(y)
         if int_x < 0 or int_y < 0:
             return self.prev_val
-        upper_x = min(int_x + 25, frame.shape[1] - 1)  # TODO make this a setting
-        lower_x = max(int_x - 25, 0)
-        upper_y = min(int_y + 25, frame.shape[0] - 1)
-        lower_y = max(int_y - 25, 0)
 
-        #   frame_crop = frame[lower_y:upper_y, lower_x:upper_x]
-        # frame = safe_crop(frame, lower_x, lower_y, upper_x, upper_y, False)
-        # ret_, th = cv2.threshold(frame_crop, 80, 1.0, cv2.THRESH_BINARY_INV, dst=frame_crop)
         frame_crop = frame
-
-        # ret, f = cv2.threshold(frame, 80, 255, cv2.THRESH_BINARY)
-        #  ret, frame_crop = cv2.threshold(frame_crop, 80, 255, cv2.THRESH_BINARY)
 
         # The same can be done with cv2.integral, but since there is only one area of the rectangle for which we want to know the total value, there is no advantage in terms of computational complexity.
         intensity = frame_crop.sum() + 1
@@ -252,8 +227,7 @@ class IntensityBasedOpeness:
         try:
             if intensity >= np.percentile(self.filterlist, 99):  # filter abnormally high values
                 intensity = self.maxval
-
-        except:
+        except Exception:
             pass
 
         # numpy:np.sum(),ndarray.sum()
@@ -266,24 +240,20 @@ class IntensityBasedOpeness:
         if int_x >= frame.shape[1]:
             int_x = frame.shape[1] - 1
             oob = True
-        #  print('CAUGHT X OUT OF BOUNDS')
 
         if int_x < 0:
             int_x = True
             oob = True
-        #  print('CAUGHT X UNDER BOUNDS')
 
         if int_y >= frame.shape[0]:
             int_y = frame.shape[0] - 1
             oob = True
-        #  print('CAUGHT Y OUT OF BOUNDS')
 
         if int_y < 0:
             int_y = 1
             oob = True
-        #  print('CAUGHT Y UNDER BOUNDS')
 
-        if oob != True and self.data.any():
+        if not oob and self.data.any():
             data_val = self.data[int_y, int_x]
         else:
             data_val = 0
@@ -316,7 +286,6 @@ class IntensityBasedOpeness:
                     (self.maxval - 5), 1
                 )  # continuously adjust closed intensity, will be set when user blink, used to allow eyes to close when lighting changes
                 self.maxval = intensityd  # set value at 0 index
-        #     print(intensityd, intensity)
 
         if newval_flg:
             # Do the same thing as in the original version.

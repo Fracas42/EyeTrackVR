@@ -34,7 +34,7 @@ from eye_processor import EyeProcessor, EyeInfoOrigin
 from queue import Queue, Empty
 from camera import Camera, CameraState
 import cv2
-from osc.OSCMessage import OSCMessageType, OSCMessage
+from osc.OSCMessage import OSCMessage
 from utils.misc_utils import PlaySound, SND_FILENAME, SND_ASYNC, resource_path
 import numpy as np
 
@@ -349,12 +349,12 @@ class CameraWidget:
             self.start()
 
     def recenter_eyes(self, osc_message: OSCMessage):
-        if not isinstance(osc_message.data,bool):
+        if not isinstance(osc_message.data, bool):
             return  # just incase we get anything other than bool
         self.settings.gui_recenter_eyes = True
 
     def recalibrate_eyes(self, osc_message: OSCMessage):
-        if not isinstance(osc_message.data,bool):
+        if not isinstance(osc_message.data, bool):
             return  # just incase we get anything other than bool
 
         if osc_message.data:
@@ -487,24 +487,6 @@ class CameraWidget:
                 window[self.gui_mode_readout].update("Tracking")
                 window[self.gui_tracking_fps].update(self._movavg_fps(self.camera.fps))
                 window[self.gui_tracking_bps].update(self._movavg_bps(self.camera.bps))
-
-            #    if event == self.gui_mask_lighten:
-            #       while True:
-            #          try:
-            #             maybe_image = self.roi_queue.get(block=False)
-            #            imgbytes = cv2.imencode(".ppm", maybe_image[0])[1].tobytes()
-            #           image = cv2.imdecode(
-            #              np.frombuffer(imgbytes, np.uint8), cv2.IMREAD_COLOR
-            #         )
-
-            #        cv2.imshow("Image", image)
-            #       cv2.waitKey(1)
-            #      cv2.destroyAllWindows()
-            #     print("lighen")
-            # except Empty:
-            #   pass
-            # if event == self.gui_mask_markup:
-            #    print("markup")
 
             if self.in_roi_mode:
                 try:

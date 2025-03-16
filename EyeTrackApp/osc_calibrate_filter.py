@@ -261,7 +261,7 @@ class cal:
             self.config.calib_XOFF = cx
             self.config.calib_YOFF = cy
             if self.ts == 0:
-                center_overlay_calibrate(self)  # TODO, only call on windows machines?
+                # center_overlay_calibrate(self)  # TODO, only call on windows machines?
                 self.settings.gui_recenter_eyes = False
                 PlaySound(resource_path("Audio/completed.wav"), SND_FILENAME | SND_ASYNC)
             else:

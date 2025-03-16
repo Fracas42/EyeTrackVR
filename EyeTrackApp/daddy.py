@@ -317,24 +317,6 @@ class DADDY_cls(object):
                 color = (255, 0, 0)
             # todo: We should have a proper variable for drawing.
             cv2.circle(self.current_image_gray, (kps[i, 0], kps[i, 1]), 1, color, 2)
-            # cv2.putText(self.current_image_gray, str(i), (kps[i, 0] - 10,  kps[i, 1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
-        # cv2.putText(self.current_image_gray, "EAR: "+str(ear), (self.current_image_gray.shape[1]//10, self.current_image_gray.shape[0]//10), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255,0,0), 1)
-
-        # global loopnum
-        # if loopnum < 1350*2:
-        #     # self.video.write(cv2.resize(gray_frame.copy(), (200, 150), None))
-        #     loopnum += 1
-        # else:
-        #     # self.video.release()
-        #     cv2.destroyAllWindows()
-        #     sys.exit()
-        # if w_video:
-        #     video.release()
-
-        # kps[i, :] = (x, y)
-        # i == [0:6] = Inner and outer corners of eyes and eyelids
-        # i == [6] = pupil
-        # i == [7:] = iris
 
         return pupil_center_x, pupil_center_y, ear
 
@@ -347,10 +329,3 @@ class External_Run_DADDY(object):
         self.algo.current_image_gray = current_image_gray
         pupil_x, pupil_y, ear = self.algo.single_run()
         return pupil_x, pupil_y, ear
-
-
-if __name__ == "__main__":
-    daddy = DADDY_cls()
-    daddy.open_video(video_path)
-    while daddy.read_frame():
-        _ = daddy.single_run()
