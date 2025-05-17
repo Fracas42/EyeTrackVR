@@ -134,7 +134,7 @@ def center_overlay_calibrate(self):
         received_int = struct.unpack("!l", data)[0]
         message = received_int
         self.settings.gui_recenter_eyes = False
-        self.calibration_frame_counter = 0
+        # self.calibration_frame_counter = 0
         var.overlay_active = False
 
 
